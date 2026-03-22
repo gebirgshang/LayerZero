@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>LAYER ZERO — 3D Print Farm Simulator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1510;font-family:'Exo 2',sans-serif;color:#e0e0e0;touch-action:none;user-select:none;-webkit-user-select:none}
+canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1}
+
+#splash{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,#1a1a2e,#0a0a0f 70%)}
+#splash h1{font-family:‘Orbitron’,monospace;font-size:clamp(2.2rem,7vw,5rem);font-weight:900;letter-spacing:.12em;background:linear-gradient(135deg,#00f0ff,#7b2ff7,#ff2d55);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 30px rgba(0,240,255,.3))}
+#splash .sub{font-family:‘Share Tech Mono’,monospace;font-size:clamp(.65rem,1.8vw,1rem);color:#00f0ff;letter-spacing:.5em;margin-top:.4rem;opacity:.6}
+#splash .tag{font-size:clamp(.75rem,2vw,1rem);color:#999;margin-top:2.5rem;font-style:italic;text-align:center;padding:0 2rem;line-height:1.6}
+#splash .go{margin-top:2.5rem;padding:.9rem 2.8rem;font-family:‘Orbitron’,monospace;font-size:.95rem;font-weight:700;background:transparent;border:2px solid #00f0ff;color:#00f0ff;border-radius:4px;cursor:pointer;letter-spacing:.15em;text-transform:uppercase;transition:all .3s;position:relative;overflow:hidden}
+#splash .go:active{background:#00f0ff22;transform:scale(1.04);box-shadow:0 0 40px rgba(0,240,255,.35)}
+
+/* HUD */
+#hud{position:fixed;top:0;left:0;right:0;z-index:10;pointer-events:none;display:none}
+#hud>*{pointer-events:auto}
+.ht{display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:linear-gradient(180deg,rgba(8,8,12,.88) 0%,rgba(8,8,12,.4) 85%,transparent);backdrop-filter:blur(6px);flex-wrap:wrap;gap:2px}
+.hl{font-family:‘Orbitron’,monospace;font-weight:900;font-size:clamp(.55rem,1.4vw,.8rem);color:#00f0ff;letter-spacing:.05em}
+.hlv{font-family:‘Share Tech Mono’,monospace;font-size:.5rem;color:#7b2ff7;background:#7b2ff718;padding:1px 4px;border-radius:2px;border:1px solid #7b2ff733;margin-left:4px}
+.hs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.s{display:flex;align-items:center;gap:2px;font-family:‘Share Tech Mono’,monospace;font-size:clamp(.5rem,1.2vw,.7rem)}
+.sv{color:#00f0ff;font-weight:700}
+
+/* New order badge (non-intrusive) */
+#obadge{position:fixed;top:36px;right:8px;z-index:12;padding:3px 8px;border-radius:8px;background:#ffaa0030;border:1px solid #ffaa00;color:#ffaa00;font-family:‘Share Tech Mono’,monospace;font-size:.5rem;cursor:pointer;display:none;animation:pulse 2s infinite;pointer-events:auto}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* Bottom bar */
+#bar{position:fixed;bottom:0;left:0;right:0;z-index:10;display:none;justify-content:center;gap:2px;padding:4px 4px max(4px,env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(8,8,12,.9) 0%,rgba(8,8,12,.35) 90%,transparent);backdrop-filter:blur(6px)}
+.ab{display:flex;flex-direction:column;align-items:center;gap:1px;padding:5px 10px;border-radius:5px;cursor:pointer;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);transition:all .15s;min-width:44px}
+.ab:active,.ab.on{background:rgba(0,240,255,.15);border-color:#00f0ff}
+.ab .i{font-size:1rem}
+.ab .l{font-size:.42rem;font-family:‘Share Tech Mono’,monospace;color:#999;text-transform:uppercase;letter-spacing:.02em}
+
+/* Toast */
+.toast{position:fixed;top:46px;left:50%;transform:translateX(-50%);z-index:100;padding:7px 18px;border-radius:4px;font-family:‘Share Tech Mono’,monospace;font-size:.7rem;pointer-events:none;white-space:nowrap;animation:tI .3s,tO .3s 2.5s forwards}
+.toast.ok{background:#00ff8830;border:1px solid #00ff88;color:#00ff88}.toast.w{background:#ffaa0030;border:1px solid #ffaa00;color:#ffaa00}.toast.e{background:#ff2d5530;border:1px solid #ff2d55;color:#ff2d55}.toast.i{background:#00f0ff30;border:1px solid #00f0ff;color:#00f0ff}
+@keyframes tI{from{opacity:0;transform:translateX(-50%) translateY(-12px)}to{opacity:1;transform:translateX(-50%)}}@keyframes tO{to{opacity:0}}
+
+/* Panel */
+.pnl{position:fixed;z-index:50;background:rgba(10,10,16,.97);backdrop-filter:blur(14px);border:1px solid #00f0ff30;border-radius:8px;display:none;overflow:hidden;box-shadow:0 4px 40px rgba(0,0,0,.6)}
+.pnl.open{display:flex;flex-direction:column;animation:pI .2s ease-out}
+@keyframes pI{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+.ph{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:rgba(0,240,255,.06);border-bottom:1px solid #00f0ff18}
+.pt{font-family:‘Orbitron’,monospace;font-size:.75rem;font-weight:700;color:#00f0ff;letter-spacing:.06em}
+.px{width:24px;height:24px;border-radius:4px;border:1px solid #ff2d5540;background:#ff2d5518;color:#ff2d55;cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center}
+.tabs{display:flex;gap:2px;padding:5px 12px;background:rgba(0,0,0,.2);border-bottom:1px solid #fff0c;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab{padding:4px 10px;font-family:‘Share Tech Mono’,monospace;font-size:.6rem;border-radius:3px;cursor:pointer;background:transparent;border:1px solid transparent;color:#777;white-space:nowrap;transition:all .12s}
+.tab.on{background:#00f0ff1a;border-color:#00f0ff;color:#00f0ff}
+.scr{padding:12px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+#comp{left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,660px);max-height:80vh}
+
+/* Cards */
+.dg{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.dc{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);border-radius:5px;padding:9px}
+.dc h4{font-family:‘Share Tech Mono’,monospace;font-size:.55rem;color:#777;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+.dc .v{font-family:‘Orbitron’,monospace;font-size:1.2rem;font-weight:700}
+.g{color:#00ff88}.c{color:#00f0ff}.p{color:#7b2ff7}.r{color:#ff2d55}
+
+/* Table */
+.ot{width:100%;border-collapse:collapse;font-size:.6rem}
+.ot th{font-family:‘Share Tech Mono’,monospace;color:#777;text-align:left;padding:4px 5px;border-bottom:1px solid #fff0e;font-size:.5rem;text-transform:uppercase}
+.ot td{padding:4px 5px;border-bottom:1px solid #fff08}
+.bd{padding:1px 4px;border-radius:2px;font-size:.5rem;font-family:‘Share Tech Mono’,monospace}
+.bd.q{background:#ffaa0018;color:#ffaa00;border:1px solid #ffaa0030}.bd.pr{background:#00f0ff18;color:#00f0ff;border:1px solid #00f0ff30}.bd.dn{background:#00ff8818;color:#00ff88;border:1px solid #00ff8830}
+
+/* Shop */
+.sg{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px}
+.si{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);border-radius:5px;padding:7px;text-align:center;cursor:pointer;transition:all .12s}
+.si:active{border-color:#00f0ff;background:rgba(0,240,255,.08)}
+.sv2{width:36px;height:36px;border-radius:50%;margin:0 auto 5px;border:2px solid rgba(255,255,255,.12)}
+
+/* Printer cards */
+.pg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:7px}
+.pc{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);border-radius:5px;padding:9px}
+.pc.act{border-color:#00f0ff33}
+.pb{width:100%;height:4px;background:#fff0c;border-radius:2px;margin-top:5px;overflow:hidden}
+.pf{height:100%;border-radius:2px;background:linear-gradient(90deg,#00f0ff,#7b2ff7);transition:width .3s}
+
+/* Upgrades */
+.ui{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);border-radius:5px;padding:9px;margin-bottom:6px}
+.ub{padding:4px 10px;font-size:.55rem;background:#7b2ff718;border:1px solid #7b2ff7;color:#7b2ff7;border-radius:3px;cursor:pointer;font-family:‘Share Tech Mono’,monospace}
+.ub:disabled{opacity:.3;cursor:not-allowed}
+
+/* Dialogue */
+#dlg{position:fixed;bottom:62px;left:50%;transform:translateX(-50%);z-index:20;max-width:min(86vw,360px);padding:9px 14px;border-radius:8px;background:rgba(10,10,16,.92);border:1px solid #7b2ff740;backdrop-filter:blur(6px);font-size:.7rem;line-height:1.5;display:none}
+#dlg.show{display:block;animation:dI .2s ease-out}
+@keyframes dI{from{opacity:0;transform:translateX(-50%) translateY(6px)}to{opacity:1;transform:translateX(-50%)}}
+
+/* Tap hint */
+#hint{position:fixed;z-index:15;padding:5px 12px;border-radius:4px;background:rgba(10,10,16,.88);border:1px solid #00f0ff40;font-family:‘Share Tech Mono’,monospace;font-size:.6rem;color:#00f0ff;pointer-events:none;display:none;left:50%;top:42%;transform:translate(-50%,-50%);white-space:nowrap}
+
+/* Tutorial */
+#tut{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.75);display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+#tut.show{display:flex}
+.tb{max-width:360px;background:rgba(10,10,16,.96);border:1px solid #00f0ff40;border-radius:8px;padding:20px;text-align:center}
+.tb h2{font-family:‘Orbitron’,monospace;color:#00f0ff;margin-bottom:8px;font-size:.9rem}
+.tb p{font-size:.7rem;line-height:1.6;color:#ccc;margin-bottom:12px}
+.tn{padding:6px 20px;background:#00f0ff18;border:1px solid #00f0ff;color:#00f0ff;border-radius:4px;cursor:pointer;font-family:‘Share Tech Mono’,monospace;font-size:.65rem}
+
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#00f0ff33;border-radius:2px}
+</style>
+
+</head>
+<body>
+<div id="splash"><h1>LAYER ZERO</h1><div class="sub">3D PRINT FARM SIMULATOR</div><div class="tag">"Everyone's print farm empire started with one janky printer on a desk, some tangled filament, and an unhealthy amount of caffeine."</div><button class="go" onclick="startGame()">▶ START YOUR PRINT FARM</button></div>
+<canvas id="cv"></canvas>
+<div id="hud"><div class="ht"><div style="display:flex;align-items:center;gap:6px"><div class="hl">LAYER ZERO</div><div class="hlv" id="hlvl">LVL 1 • THE NOOK</div></div><div class="hs"><div class="s">💰<span class="sv" id="hc">$500</span></div><div class="s">📦<span class="sv" id="ho">0</span></div><div class="s">🖨️<span class="sv" id="hp">1/4</span></div><div class="s">⭐<span class="sv" id="hr">0</span></div></div></div></div>
+<div id="obadge" onclick="openComp('orders')">📦 NEW ORDERS WAITING!</div>
+<div id="bar">
+  <div class="ab" onclick="openComp('dashboard')"><div class="i">🖥️</div><div class="l">CMD</div></div>
+  <div class="ab" onclick="openComp('orders')"><div class="i">📋</div><div class="l">Orders</div></div>
+  <div class="ab" onclick="openComp('printers')"><div class="i">🖨️</div><div class="l">Print</div></div>
+  <div class="ab" onclick="openComp('filament')"><div class="i">🧵</div><div class="l">Shop</div></div>
+  <div class="ab" onclick="openComp('upgrade')"><div class="i">⬆️</div><div class="l">Level Up</div></div>
+</div>
+<div class="pnl" id="comp"><div class="ph"><div class="pt">💻 CMD CENTER</div><button class="px" onclick="closeComp()">✕</button></div><div class="tabs"><div class="tab on" data-t="dashboard" onclick="swTab('dashboard')">🏠 Home</div><div class="tab" data-t="orders" onclick="swTab('orders')">📋 Orders</div><div class="tab" data-t="active" onclick="swTab('active')">📊 Active</div><div class="tab" data-t="deliveries" onclick="swTab('deliveries')">📦 Ship</div><div class="tab" data-t="printers" onclick="swTab('printers')">🖨️ Printers</div><div class="tab" data-t="filament" onclick="swTab('filament')">🧵 Shop</div><div class="tab" data-t="upgrade" onclick="swTab('upgrade')">⬆️ Upgrades</div></div><div class="scr" id="cscr"></div></div>
+<div id="dlg"><div style="font-family:'Orbitron',monospace;font-size:.55rem;color:#7b2ff7;margin-bottom:2px" id="dsp"></div><div id="dtxt"></div></div>
+<div id="hint"></div>
+<div id="tut"><div class="tb"><h2 id="tt"></h2><p id="tp"></p><button class="tn" onclick="nextTut()">NEXT →</button></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script>
+// =======================================================
+//  LAYER ZERO v3 — FIRST PERSON, COZY NOOK, FULL GAME
+// =======================================================
+
+// ===== GLB MODEL LOADER =====
+// Place .glb files in a "models/" folder next to index.html
+// Supported models (add any of these and they auto-replace the primitive):
+//   models/plant.glb    — potted plant on side desk
+//   models/printer.glb  — 3D printer (replaces all printer instances)
+//   models/desk.glb     — L-shaped desk
+//   models/spool.glb    — filament spool
+//   models/monitor.glb  — computer monitor
+//   models/mug.glb      — coffee mug
+//   models/lamp.glb     — desk lamp
+//   models/chair.glb    — stool/chair
+//   models/box.glb      — delivery box
+//   models/clock.glb    — wall clock
+const glbLoader=new THREE.GLTFLoader();
+const loadedModels={};
+const MODEL_CONFIG={
+  // name:  { path, scale, pos:[x,y,z], rot:[x,y,z] (radians) }
+  plant:   {path:'models/plant.glb',   scale:0.25, pos:[-1.25, 0.77, -0.75], rot:[0,0,0]},
+  printer: {path:'models/printer.glb', scale:0.3,  pos:[0,0,0], rot:[0,0,0]}, // applied per-printer
+  desk:    {path:'models/desk.glb',    scale:0.5,  pos:[0, 0, -1.48], rot:[0,0,0]},
+  spool:   {path:'models/spool.glb',   scale:0.1,  pos:[0,0,0], rot:[0,0,0]},
+  monitor: {path:'models/monitor.glb', scale:0.3,  pos:[0.65, 0.77, -1.62], rot:[0,0,0]},
+  mug:     {path:'models/mug.glb',     scale:0.15, pos:[0.95, 0.77, -1.32], rot:[0,0,0]},
+  lamp:    {path:'models/lamp.glb',    scale:0.25, pos:[1.15, 0.77, -1.65], rot:[0,0,0]},
+  chair:   {path:'models/chair.glb',   scale:0.3,  pos:[0.65, 0, -0.65], rot:[0,0,0]},
+  box:     {path:'models/box.glb',     scale:0.3,  pos:[1.5, 0, 0.2], rot:[0,0,0]},
+  clock:   {path:'models/clock.glb',   scale:0.15, pos:[1.2, 1.9, -1.94], rot:[0,0,0]},
+};
+
+// Track which primitives to hide when GLB loads
+const primitiveReplacements={};
+
+function tryLoadGLB(name, onLoad){
+  const cfg=MODEL_CONFIG[name];
+  if(!cfg)return;
+  glbLoader.load(cfg.path, (gltf)=>{
+    const model=gltf.scene;
+    model.scale.setScalar(cfg.scale);
+    model.position.set(cfg.pos[0],cfg.pos[1],cfg.pos[2]);
+    model.rotation.set(cfg.rot[0],cfg.rot[1],cfg.rot[2]);
+    model.traverse(child=>{
+      if(child.isMesh){child.castShadow=true;child.receiveShadow=true;}
+    });
+    loadedModels[name]=model;
+    if(onLoad)onLoad(model);
+    console.log('✅ Loaded GLB: '+name);
+  }, undefined, ()=>{
+    // File not found — silently use primitive (this is expected)
+  });
+}
+
+// Load all available models after scene is ready
+function loadAllGLBs(){
+  // Plant — replace primitive plant
+  tryLoadGLB('plant',(model)=>{
+    // Hide primitive plant (sphere+cylinder)
+    room.children.forEach(c=>{
+      if(c.isMesh&&c.geometry?.type==='SphereGeometry'&&Math.abs(c.position.x-(-1.25))<0.1)c.visible=false;
+      if(c.isMesh&&c.geometry?.type==='CylinderGeometry'&&Math.abs(c.position.x-(-1.25))<0.1&&c.position.y<1)c.visible=false;
+    });
+    room.add(model);
+  });
+
+  // Monitor
+  tryLoadGLB('monitor',(model)=>{
+    room.children.forEach(c=>{
+      if(c.userData?.type==='computer'){c.visible=false;/* keep interactable */}
+    });
+    model.userData.type='computer';
+    room.add(model);interactables.push(model);
+  });
+
+  // Mug
+  tryLoadGLB('mug',(model)=>{room.add(model);});
+
+  // Lamp
+  tryLoadGLB('lamp',(model)=>{room.add(model);});
+
+  // Chair/Stool
+  tryLoadGLB('chair',(model)=>{room.add(model);});
+
+  // Delivery box
+  tryLoadGLB('box',(model)=>{
+    model.userData.type='deliverybox';
+    room.add(model);interactables.push(model);
+  });
+
+  // Clock
+  tryLoadGLB('clock',(model)=>{room.add(model);});
+
+  // Desk (tricky — hides primitive desk)
+  tryLoadGLB('desk',(model)=>{room.add(model);});
+
+  // Printer model — stored for use in placePrinters
+  tryLoadGLB('printer');
+}
+
+// Helper: create a printer from GLB if available, otherwise use primitive
+function makePrinterMesh(data){
+  if(loadedModels.printer){
+    const clone=loadedModels.printer.clone();
+    clone.userData={type:'printer',printerId:data.id,id:data.id};
+    // Still need named parts for animation — add invisible helpers
+    const ext=new THREE.Object3D();ext.name='ext';clone.add(ext);
+    const noz=new THREE.Object3D();noz.name='noz';clone.add(noz);
+    const po=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.004,0.07),new THREE.MeshStandardMaterial({color:0xeee,roughness:0.4}));
+    po.position.set(0,0.055,0);po.visible=false;po.name='pobj';clone.add(po);
+    const led=new THREE.Mesh(new THREE.SphereGeometry(0.006,8,8),M.led);
+    led.position.set(0.15,0.39,0.15);led.name='led';clone.add(led);
+    const glow=new THREE.PointLight(0x00aaff,0,0.8);glow.position.set(0,0.15,0);glow.name='pglow';clone.add(glow);
+    const spool=new THREE.Mesh(new THREE.TorusGeometry(0.025,0.01,8,12),new THREE.MeshStandardMaterial({color:0x888,roughness:0.4}));
+    spool.position.set(0.12,0.44,0);spool.rotation.y=Math.PI/2;spool.name='spool';spool.visible=false;clone.add(spool);
+    return clone;
+  }
+  return mkPrt(data); // fallback to primitive
+}
+const G={cash:500,rep:0,level:1,printers:[],orders:[],pendingOrders:[],completed:0,filament:{},
+  time:0,oTimer:0,oInterval:8,dTimer:0,dInterval:18,
+  camYaw:0,camPitch:0,camDist:0,
+  camX:0,camY:1.55,camZ:1.8,
+  lookYaw:0,lookPitch:0,
+  dragging:false,lastP:null,pending:null,tutStep:0,paused:false,started:false,
+  autoAssign:false,filDiscount:1,repMult:1,prtDiscount:1,pinchDist:0,
+  achievements:[],money_earned:0,deliveryBox:[],coffeeBoosts:0,waterCount:0
+};
+
+const LEVELS=[{name:'THE NOOK',max:4,cost:0},{name:'THE GARAGE',max:8,cost:5000},{name:'THE DEPOT',max:12,cost:20000}];
+const FILS=[
+  {id:'pla_r',n:'PLA Red',color:'#e53935',t:'PLA',price:20},{id:'pla_g',n:'PLA Green',color:'#43a047',t:'PLA',price:20},
+  {id:'pla_b',n:'PLA Blue',color:'#1e88e5',t:'PLA',price:20},{id:'pla_w',n:'PLA White',color:'#eeeeee',t:'PLA',price:18},
+  {id:'pla_k',n:'PLA Black',color:'#333333',t:'PLA',price:18},{id:'petg_c',n:'PETG Clear',color:'#b3e5fc',t:'PETG',price:30},
+  {id:'petg_b',n:'PETG Blue',color:'#0d47a1',t:'PETG',price:30},{id:'abs_r',n:'ABS Red',color:'#c62828',t:'ABS',price:25},
+  {id:'abs_k',n:'ABS Black',color:'#212121',t:'ABS',price:25},{id:'cf',n:'Carbon Fiber',color:'#37474f',t:'CF',price:55},
+];
+const MODELS={
+  1:[{name:'Benchy Boat',time:18,reward:45},{name:'Cal Cube',time:10,reward:22},{name:'Gear',time:14,reward:38},{name:'Phone Stand',time:12,reward:32}],
+  2:[{name:'Low-poly Vase',time:28,reward:85},{name:'Flexi Rex',time:32,reward:110},{name:'Chess Set',time:38,reward:130},{name:'Geo Car',time:30,reward:95}],
+  3:[{name:'Bracket',time:42,reward:190},{name:'Turbine Blade',time:52,reward:260},{name:'Mech Housing',time:65,reward:370},{name:'Drone Frame',time:58,reward:320}],
+};
+const CLIENTS=['TechCorp','RoboDynamics','Astro Sys','MakerHub','PrintVault','NexGen','CyberForge','LayerLab','FilaWorks','3DGenius','Benchy Bro LLC','Nozzle Nation','Bed Adhesion Inc'];
+const DLGS=[
+  {s:'PRINT-BOT 3000',t:"Printer sounds like a beatboxing robot. That's a feature, not a bug. 🎵"},
+  {s:'PRINT-BOT 3000',t:"Fun fact: You've melted enough plastic to fill a... very small bucket. Dream big!"},
+  {s:'CUSTOMER AI',t:"My benchy sank in the bathtub. I'm rating you 1 star. On the bathtub."},
+  {s:'FILAMENT FAIRY',t:"The spools whisper your name at night... buy more... BUY MORE... 🧵"},
+  {s:'PRINT-BOT 3000',t:"Vibe check: 73% productive, 27% staring at filament spin. Mood."},
+  {s:'CUSTOMER AI',t:"Can you 3D print my self-esteem? Asking for a friend. The friend is me."},
+  {s:'PRINT-BOT 3000',t:"New record! Zero fires today! The bar was underground."},
+  {s:'WAREHOUSE GHOST',t:"I haunt this room. Also, you're low on PLA. 👻"},
+  {s:'PRINT-BOT 3000',t:"Efficiency rating: *chef's kiss* (that means 'barely surviving' in robot)"},
+  {s:'DELIVERY DRONE',t:"Package delivered! Customer said 'wow' — 60% chance that was positive."},
+  {s:'FILAMENT FAIRY',t:"Carbon fiber? In THIS economy?? Bold move, entrepreneur. 🎩"},
+  {s:'CUSTOMER AI',t:"5 STARS! The calibration cube calibrated my SOUL. Transcendent experience."},
+  {s:'PRINT-BOT 3000',t:"I dreamed of electric sheep. They needed 3D printed legs. And better layer adhesion."},
+  {s:'SPAGHETTI MONSTER',t:"Mmmm yes... let the nozzle clog... join the spaghetti side... 🍝"},
+  {s:'PRINT-BOT 3000',t:"Tip: Check the computer for new orders! Money doesn't print itself. Well, WE do."},
+  {s:'CUSTOMER AI',t:"I asked for a vase and got art. Ugly art. But still art. 4 stars."},
+];
+const UPGRADES=[
+  {id:'sp1',name:'Quick Nozzle',desc:'20% faster prints',cost:300,icon:'⚡',done:false,fn(){G.printers.forEach(p=>p.spd=0.8)}},
+  {id:'auto',name:'Auto-Queue',desc:'Orders auto-assign to idle printers',cost:500,icon:'🤖',done:false,fn(){G.autoAssign=true}},
+  {id:'bulk',name:'Bulk Buyer',desc:'Filament 25% cheaper',cost:800,icon:'🏷️',done:false,fn(){G.filDiscount=0.75}},
+  {id:'sp2',name:'Turbo Hotend',desc:'40% faster prints',cost:2000,icon:'🔥',done:false,fn(){G.printers.forEach(p=>p.spd=0.6)}},
+  {id:'rep',name:'Social Media Bot',desc:'2x reputation per order',cost:1500,icon:'📱',done:false,fn(){G.repMult=2}},
+  {id:'disc',name:'Wholesale License',desc:'Printers 30% cheaper',cost:3000,icon:'📜',done:false,fn(){G.prtDiscount=0.7}},
+];
+FILS.forEach(f=>G.filament[f.id]=0);
+G.filament['pla_w']=3;G.filament['pla_r']=2;
+
+// ===== SOUND (Web Audio - pleasant minimal sounds) =====
+let actx=null;
+function snd(name){
+  try{
+    if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended')actx.resume();
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.connect(g);g.connect(actx.destination);
+    const t=actx.currentTime;
+    switch(name){
+      case'click':o.type='sine';o.frequency.value=600;g.gain.setValueAtTime(0.04,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.06);o.start(t);o.stop(t+0.06);break;
+      case'ok':o.type='sine';o.frequency.setValueAtTime(520,t);o.frequency.linearRampToValueAtTime(780,t+0.12);g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.15);o.start(t);o.stop(t+0.15);break;
+      case'err':o.type='triangle';o.frequency.setValueAtTime(280,t);o.frequency.linearRampToValueAtTime(180,t+0.15);g.gain.setValueAtTime(0.04,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);o.start(t);o.stop(t+0.18);break;
+      case'buy':o.type='sine';o.frequency.setValueAtTime(880,t);o.frequency.linearRampToValueAtTime(1200,t+0.08);g.gain.setValueAtTime(0.04,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);break;
+      case'done':o.type='sine';o.frequency.setValueAtTime(523,t);o.frequency.setValueAtTime(659,t+0.1);o.frequency.setValueAtTime(784,t+0.2);o.frequency.setValueAtTime(1047,t+0.3);g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.45);o.start(t);o.stop(t+0.45);break;
+      case'load':o.type='triangle';o.frequency.setValueAtTime(400,t);o.frequency.linearRampToValueAtTime(600,t+0.2);g.gain.setValueAtTime(0.04,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.25);o.start(t);o.stop(t+0.25);break;
+      default:o.disconnect();g.disconnect();return;
+    }
+  }catch(e){}
+}
+
+// ===== RENDERER =====
+const cv=document.getElementById('cv');
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));
+R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;
+R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=1.15;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x0e0c08);
+scene.fog=new THREE.Fog(0x0e0c08,8,14);
+const cam=new THREE.PerspectiveCamera(62,innerWidth/innerHeight,0.05,20);
+const clk=new THREE.Clock();
+const ray=new THREE.Raycaster();const tv=new THREE.Vector2();
+let room=new THREE.Group();scene.add(room);
+let prtMeshes=[];let interactables=[];
+
+// Materials
+const M={
+  wood:new THREE.MeshStandardMaterial({color:0xb8864a,roughness:0.75}),
+  woodDk:new THREE.MeshStandardMaterial({color:0x8b6540,roughness:0.82}),
+  woodLight:new THREE.MeshStandardMaterial({color:0xd4a85c,roughness:0.7}),
+  metal:new THREE.MeshStandardMaterial({color:0x8888aa,roughness:0.3,metalness:0.7}),
+  metalDk:new THREE.MeshStandardMaterial({color:0x555566,roughness:0.4,metalness:0.6}),
+  wall:new THREE.MeshStandardMaterial({color:0xd9ccb4,roughness:0.95}),
+  wallAccent:new THREE.MeshStandardMaterial({color:0xc4b8a0,roughness:0.9}),
+  wallGarage:new THREE.MeshStandardMaterial({color:0x8a9098,roughness:0.88}),
+  wallDepot:new THREE.MeshStandardMaterial({color:0x6a7078,roughness:0.85}),
+  floor:new THREE.MeshStandardMaterial({color:0x8a7d6a,roughness:0.88}),
+  floorWood:new THREE.MeshStandardMaterial({color:0x9a7a52,roughness:0.8}),
+  carpet:new THREE.MeshStandardMaterial({color:0x5a5040,roughness:0.95}),
+  black:new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.5}),
+  screen:new THREE.MeshStandardMaterial({color:0x0a1828,roughness:0.15,emissive:0x061422,emissiveIntensity:0.8}),
+  screenOn:new THREE.MeshStandardMaterial({color:0x112244,roughness:0.1,emissive:0x0a2244,emissiveIntensity:1.2}),
+  glass:new THREE.MeshStandardMaterial({color:0xaaddff,transparent:true,opacity:0.15,roughness:0.05}),
+  box:new THREE.MeshStandardMaterial({color:0xc4a46c,roughness:0.92}),
+  white:new THREE.MeshStandardMaterial({color:0xeee,roughness:0.5}),
+  green:new THREE.MeshStandardMaterial({color:0x3a8a3a,roughness:0.65}),
+  red:new THREE.MeshStandardMaterial({color:0xcc3333,roughness:0.5}),
+  fabric:new THREE.MeshStandardMaterial({color:0x3a3530,roughness:0.95}),
+  paper:new THREE.MeshStandardMaterial({color:0xf0e8d8,roughness:0.95}),
+  led:new THREE.MeshStandardMaterial({color:0x00ff88,emissive:0x00ff88,emissiveIntensity:2.5}),
+  ledB:new THREE.MeshStandardMaterial({color:0x0088ff,emissive:0x0066ff,emissiveIntensity:2}),
+};
+
+// ===== ROOM BUILDER =====
+function B(w,h,d,m,x,y,z,rx,ry){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);if(rx)o.rotation.x=rx;if(ry)o.rotation.y=ry;o.castShadow=true;o.receiveShadow=true;room.add(o);return o;}
+function Cyl(rt,rb,h,m,x,y,z,seg){const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg||12),m);o.position.set(x,y,z);o.castShadow=true;room.add(o);return o;}
+
+function buildRoom(lv){
+  while(room.children.length)room.remove(room.children[0]);
+  prtMeshes=[];interactables=[];
+  scene.children.filter(c=>c.isLight).forEach(l=>scene.remove(l));
+
+  if(lv===1)buildNook();
+  else if(lv===2)buildGarage();
+  else buildDepot();
+}
+
+function buildNook(){
+  const W=4.5,D=4,H=2.7;
+  // Floor — warm wood
+  B(W,0.08,D,M.floorWood,0,-0.04,0);
+  // Carpet area rug under desk
+  B(2.6,0.01,1.8,M.carpet,0.2,0.005,-0.3);
+  // Walls — all 4 (first person, you're inside!)
+  B(W,H,0.1,M.wall,0,H/2,-D/2); // back
+  B(0.1,H,D,M.wall,-W/2,H/2,0); // left
+  B(0.1,H,D,M.wallAccent,W/2,H/2,0); // right
+  B(W,H,0.1,M.wall,0,H/2,D/2); // front (behind player)
+  // Ceiling
+  B(W,0.06,D,new THREE.MeshStandardMaterial({color:0xccc4b4,roughness:1}),0,H,0);
+  // Baseboard
+  for(let z of[-D/2+0.08,D/2-0.08])B(W,0.08,0.03,M.woodDk,0,0.04,z);
+  for(let x of[-W/2+0.08,W/2-0.08])B(0.03,0.08,D,M.woodDk,x,0.04,0);
+  // Crown molding
+  for(let z of[-D/2+0.06,D/2-0.06])B(W,0.04,0.04,M.white,0,H-0.02,z);
+
+  // === L-SHAPED DESK (main surface against back wall) ===
+  // Main desk top
+  B(2.8,0.055,0.85,M.wood,0,0.74,-D/2+0.52);
+  // Side extension (left)
+  B(0.85,0.055,0.65,M.wood,-1.0,0.74,-D/2+1.0);
+  // Desk legs (wooden tapered)
+  for(let[x,z]of[[-1.35,-D/2+0.18],[1.35,-D/2+0.18],[-1.35,-D/2+0.85],[1.35,-D/2+0.85]]){
+    Cyl(0.025,0.03,0.74,M.woodDk,x,0.37,z);
+  }
+  // Side desk leg
+  Cyl(0.025,0.03,0.74,M.woodDk,-1.38,0.37,-D/2+1.28);
+  // Drawer unit under right side
+  B(0.42,0.5,0.55,M.woodDk,1.1,0.37,-D/2+0.52);
+  // Drawer faces
+  for(let dy=0;dy<3;dy++){
+    B(0.38,0.13,0.01,M.wood,1.1,0.18+dy*0.17,-D/2+0.81);
+    // Drawer handles
+    B(0.08,0.015,0.015,M.metal,1.1,0.18+dy*0.17,-D/2+0.82);
+  }
+
+  // === COMPUTER MONITOR ===
+  B(0.22,0.015,0.15,M.metalDk,0.65,0.77,-D/2+0.38); // base
+  Cyl(0.015,0.02,0.15,M.metalDk,0.65,0.85,-D/2+0.38); // stand
+  const scr=B(0.55,0.35,0.02,M.screenOn,0.65,1.1,-D/2+0.38);
+  scr.userData.type='computer';interactables.push(scr);
+  // Screen bezel
+  B(0.58,0.38,0.01,M.black,0.65,1.1,-D/2+0.37);
+  // Keyboard
+  B(0.3,0.01,0.1,M.metalDk,0.65,0.77,-D/2+0.65);
+  // Mouse
+  B(0.04,0.015,0.06,M.metalDk,0.92,0.77,-D/2+0.65);
+
+  // === 3D PRINTERS ON DESK (1 to start, up to 4) ===
+  // Printers go on the main desk surface
+
+  // === STOOL (simple, facing desk) ===
+  Cyl(0.17,0.17,0.04,M.fabric,0.65,0.46,-D/2+1.4);
+  Cyl(0.018,0.018,0.44,M.metalDk,0.65,0.23,-D/2+1.4);
+  for(let a=0;a<4;a++){const ax=Math.cos(a*Math.PI/2+0.4)*0.13,az=Math.sin(a*Math.PI/2+0.4)*0.13;
+    const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.012,0.46,6),M.metalDk);leg.position.set(0.65+ax,0.23,-D/2+1.4+az);leg.rotation.x=(az>0?-1:1)*0.06;leg.rotation.z=(ax>0?1:-1)*0.06;room.add(leg);}
+
+  // === DELIVERY BOX (on floor, right side of desk) ===
+  const dbox=B(0.4,0.28,0.35,new THREE.MeshStandardMaterial({color:0xc4a060,roughness:0.9}),1.5,0.14,0.2);
+  dbox.userData.type='deliverybox';interactables.push(dbox);
+  // Box flaps (open)
+  B(0.38,0.01,0.12,new THREE.MeshStandardMaterial({color:0xb89550,roughness:0.9}),1.5,0.29,0.05);
+  B(0.38,0.01,0.12,new THREE.MeshStandardMaterial({color:0xb89550,roughness:0.9}),1.5,0.29,0.35);
+  // Shipping label
+  B(0.12,0.08,0.001,M.white,1.5,0.18,0.38);
+
+  // === WALL CLOCK ===
+  const clockFace=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.015,20),M.white);
+  clockFace.position.set(1.2,1.9,-D/2+0.06);clockFace.rotation.x=Math.PI/2;room.add(clockFace);
+  const clockRim=new THREE.Mesh(new THREE.TorusGeometry(0.12,0.008,8,20),M.metalDk);
+  clockRim.position.set(1.2,1.9,-D/2+0.07);clockRim.rotation.x=Math.PI/2;room.add(clockRim);
+  // Clock hands
+  const hourH=B(0.005,0.06,0.003,M.black,1.2,1.92,-D/2+0.075);hourH.name='clockH';
+  const minH=B(0.003,0.08,0.003,M.black,1.2,1.93,-D/2+0.08);minH.name='clockM';
+
+  // === WALL SHELF WITH BOOKS ===
+  B(1.6,0.04,0.22,M.wood,-0.5,1.85,-D/2+0.14);
+  // Books
+  const bookColors=[0x8b3a3a,0x2a4a8b,0x2a6b3a,0x8b6a2a,0x5a3a7a,0x3a6a6a,0x8b5a2a];
+  let bx=-1.2;
+  for(let i=0;i<7;i++){
+    const bh=0.12+Math.random()*0.08;
+    B(0.03+Math.random()*0.02,bh,0.15,new THREE.MeshStandardMaterial({color:bookColors[i],roughness:0.88}),bx,1.87+bh/2,-D/2+0.14);
+    bx+=0.07+Math.random()*0.03;
+  }
+
+  // === FRAMED PICTURE ON WALL ===
+  B(0.3,0.22,0.015,M.woodDk,0.2,1.65,-D/2+0.06); // frame
+  B(0.25,0.17,0.01,M.paper,0.2,1.65,-D/2+0.07); // picture
+
+  // === SMALL POTTED PLANT (far corner of side desk) ===
+  Cyl(0.06,0.045,0.1,new THREE.MeshStandardMaterial({color:0xb86633,roughness:0.88}),-1.25,0.82,-D/2+1.25);
+  const leaves=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,6),M.green);
+  leaves.position.set(-1.25,0.95,-D/2+1.25);leaves.scale.y=1.2;room.add(leaves);
+
+  // === COFFEE MUG (near monitor) ===
+  Cyl(0.028,0.024,0.06,M.white,0.95,0.8,-D/2+0.7);
+
+  // === STICKY NOTES (near keyboard) ===
+  B(0.06,0.003,0.06,new THREE.MeshStandardMaterial({color:0xffee55,roughness:0.95}),0.4,0.77,-D/2+0.55);
+  B(0.06,0.003,0.06,new THREE.MeshStandardMaterial({color:0xff88aa,roughness:0.95}),0.48,0.773,-D/2+0.58);
+
+  // === SPOOL SHELF (right wall) ===
+  B(0.8,0.035,0.2,M.wood,W/2-0.15,1.5,-D/2+0.8,0,0);
+  // Spools will be placed dynamically
+
+  // === SMALL WHITEBOARD ===
+  B(0.6,0.4,0.015,M.white,-W/2+0.06,1.5,-0.5);
+  B(0.64,0.44,0.01,M.metalDk,-W/2+0.055,1.5,-0.5); // frame
+
+  // === STRING LIGHTS ===
+  for(let i=0;i<10;i++){
+    const x=-W/2+0.3+i*(W-0.6)/9;
+    const sag=Math.sin(i/9*Math.PI)*0.1;
+    const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.018,6,6),new THREE.MeshStandardMaterial({color:0xffffcc,emissive:0xffee44,emissiveIntensity:1+Math.random()*0.8}));
+    bulb.position.set(x,H-0.25-sag,-D/2+0.08);room.add(bulb);
+  }
+  // Wire for string lights
+  const wirePts=[];for(let i=0;i<=20;i++){const t=i/20;const x=-W/2+0.3+t*(W-0.6);const sag=Math.sin(t*Math.PI)*0.1;wirePts.push(new THREE.Vector3(x,H-0.25-sag,-D/2+0.08));}
+  const wireCurve=new THREE.CatmullRomCurve3(wirePts);
+  const wireGeo=new THREE.TubeGeometry(wireCurve,30,0.003,4,false);
+  room.add(new THREE.Mesh(wireGeo,new THREE.MeshStandardMaterial({color:0x222222,roughness:0.9})));
+
+  // === WINDOW (left wall, with light coming through) ===
+  B(0.8,0.6,0.08,M.woodDk,-W/2+0.04,1.6,0.8); // frame
+  B(0.7,0.5,0.03,new THREE.MeshStandardMaterial({color:0xccddee,transparent:true,opacity:0.3,emissive:0xaabbcc,emissiveIntensity:0.3}),-W/2+0.04,1.6,0.8); // glass
+  // Window light
+  const winLight=new THREE.SpotLight(0xffeedd,0.6,5,Math.PI/4,0.5);
+  winLight.position.set(-W/2+0.5,1.8,0.8);winLight.target.position.set(0,0,0);
+  scene.add(winLight);scene.add(winLight.target);
+
+  // === COAT HOOK on front wall ===
+  B(0.02,0.08,0.04,M.metalDk,1.5,1.5,D/2-0.06);
+
+  // === POWER STRIP under desk ===
+  B(0.25,0.03,0.05,M.white,0.8,0.04,-D/2+0.85);
+
+  // === LIGHTING ===
+  scene.add(new THREE.AmbientLight(0xfff5e8,0.25));
+  // Warm overhead (desk lamp feel)
+  const warm=new THREE.PointLight(0xffcc77,0.9,6);warm.position.set(0,H-0.15,0);warm.castShadow=true;warm.shadow.mapSize.set(512,512);scene.add(warm);
+  // Desk lamp (right side, near monitor)
+  Cyl(0.05,0.06,0.02,M.metalDk,1.15,0.77,-D/2+0.35); // base
+  B(0.015,0.3,0.015,M.metalDk,1.15,0.93,-D/2+0.35); // arm
+  const lShade=Cyl(0.07,0.04,0.06,M.metalDk,1.15,1.12,-D/2+0.32);
+  const deskLamp=new THREE.PointLight(0xffee88,0.65,2.5);deskLamp.position.set(1.15,1.1,-D/2+0.35);scene.add(deskLamp);
+  // Screen glow
+  const sGlow=new THREE.PointLight(0x2244aa,0.25,1.5);sGlow.position.set(0.65,1.1,-D/2+0.55);scene.add(sGlow);
+
+  // First person camera position (standing in room, looking at desk with printers)
+  G.camX=0.3;G.camY=1.55;G.camZ=0.8;G.lookYaw=0.2;G.lookPitch=-0.15;
+}
+
+function buildGarage(){
+  const W=6,D=5.5,H=3;
+  B(W,0.1,D,new THREE.MeshStandardMaterial({color:0x888,roughness:0.92}),0,-0.05,0);
+  B(W,H,0.1,M.wallGarage,0,H/2,-D/2);B(0.1,H,D,M.wallGarage,-W/2,H/2,0);B(0.1,H,D,M.wallGarage,W/2,H/2,0);B(W,H,0.1,M.wallGarage,0,H/2,D/2);
+  B(W,0.06,D,new THREE.MeshStandardMaterial({color:0xaaa,roughness:1}),0,H,0);
+  // Workbench
+  B(3.5,0.05,1.4,M.metalDk,0,0.82,-D/2+0.9);
+  for(let x of[-1.6,1.6])for(let z of[-D/2+0.28,-D/2+1.48])B(0.04,0.82,0.04,M.metal,x,0.41,z);
+  // Monitors
+  B(0.5,0.32,0.02,M.screenOn,1.8,1.15,-D/2+0.45);
+  const scr2=B(0.5,0.32,0.02,M.screenOn,2.35,1.15,-D/2+0.45);
+  scr2.userData.type='computer';interactables.push(scr2);
+  // Pegboard
+  B(0.04,1.2,1.6,new THREE.MeshStandardMaterial({color:0xc0a870,roughness:0.92}),W/2-0.06,1.3,0);
+  for(let i=0;i<4;i++)B(0.02,0.15+Math.random()*0.1,0.04,M.metalDk,W/2-0.1,1.1+(i%2)*0.35,-0.5+i*0.25);
+  // Garage door
+  B(2.6,2.2,0.06,new THREE.MeshStandardMaterial({color:0x708090,roughness:0.55,metalness:0.4}),0,1.1,D/2-0.04);
+  // Lighting
+  scene.add(new THREE.AmbientLight(0xeeeeff,0.3));
+  for(let x of[-1.5,1.5]){const l=new THREE.PointLight(0xeeeeff,0.7,8);l.position.set(x,H-0.2,0);if(x<0){l.castShadow=true;l.shadow.mapSize.set(512,512);}scene.add(l);}
+  G.camX=0;G.camY=1.6;G.camZ=1.5;G.lookYaw=0;G.lookPitch=-0.05;
+}
+
+function buildDepot(){
+  const W=8,D=7,H=3.5;
+  B(W,0.1,D,new THREE.MeshStandardMaterial({color:0x777,roughness:0.95}),0,-0.05,0);
+  B(W,H,0.1,M.wallDepot,0,H/2,-D/2);B(0.1,H,D,M.wallDepot,-W/2,H/2,0);B(0.1,H,D,M.wallDepot,W/2,H/2,0);B(W,H,0.1,M.wallDepot,0,H/2,D/2);
+  B(W,0.06,D,new THREE.MeshStandardMaterial({color:0x999,roughness:1}),0,H,0);
+  for(let x of[-2.5,0,2.5]){
+    B(2.2,0.05,1.2,M.metalDk,x,0.82,-D/2+1);
+    for(let lx of[x-0.9,x+0.9])for(let lz of[-D/2+0.5,-D/2+1.5])B(0.04,0.82,0.04,M.metal,lx,0.41,lz);
+  }
+  const scr3=B(0.5,0.35,0.02,M.screenOn,0,1.6,-D/2+0.55);scr3.userData.type='computer';interactables.push(scr3);
+  scene.add(new THREE.AmbientLight(0xffffff,0.3));
+  for(let i=-1;i<=1;i++){const l=new THREE.PointLight(0xffffff,0.6,10);l.position.set(i*2.5,H-0.2,0);if(i===0){l.castShadow=true;l.shadow.mapSize.set(512,512);}scene.add(l);}
+  G.camX=0;G.camY=1.65;G.camZ=1.5;G.lookYaw=0;G.lookPitch=-0.05;
+}
+
+// ===== 3D PRINTER =====
+function mkPrt(data){
+  const g=new THREE.Group();
+  g.userData={type:'printer',printerId:data.id,id:data.id};
+  const fc=data.color||0x333333;
+  const fm=new THREE.MeshStandardMaterial({color:fc,roughness:0.35,metalness:0.5});
+
+  // Base plate
+  const base=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.025,0.34),fm);
+  base.position.set(0,0.013,0);base.castShadow=true;g.add(base);
+
+  // Print bed
+  const bed=new THREE.Mesh(new THREE.BoxGeometry(0.26,0.01,0.26),M.black);
+  bed.position.set(0,0.045,0);g.add(bed);
+
+  // Corner posts
+  const postMat=new THREE.MeshStandardMaterial({color:0x444444,roughness:0.2,metalness:0.8});
+  for(let px of[-0.16,0.16]){for(let pz of[-0.14,0.14]){
+    const post=new THREE.Mesh(new THREE.BoxGeometry(0.018,0.38,0.018),postMat);
+    post.position.set(px,0.215,pz);g.add(post);
+  }}
+
+  // Top plate
+  const top=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.018,0.34),fm);
+  top.position.set(0,0.4,0);g.add(top);
+
+  // Glass sides
+  const gm=new THREE.MeshStandardMaterial({color:0xaaddff,transparent:true,opacity:0.15,roughness:0.02});
+  const gl1=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.34,0.3),gm);
+  gl1.position.set(-0.175,0.21,0);g.add(gl1);
+  const gl2=new THREE.Mesh(new THREE.BoxGeometry(0.002,0.34,0.3),gm);
+  gl2.position.set(0.175,0.21,0);g.add(gl2);
+  const gl3=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.34,0.002),gm);
+  gl3.position.set(0,0.21,-0.155);g.add(gl3);
+
+  // Extruder
+  const ext=new THREE.Mesh(new THREE.BoxGeometry(0.045,0.035,0.045),M.metalDk);
+  ext.position.set(0,0.32,0);ext.name='ext';g.add(ext);
+
+  // Nozzle
+  const noz=new THREE.Mesh(new THREE.CylinderGeometry(0.003,0.001,0.015,6),new THREE.MeshStandardMaterial({color:0xccaa00,metalness:0.9,roughness:0.2}));
+  noz.position.set(0,0.295,0);noz.name='noz';g.add(noz);
+
+  // LED
+  const led=new THREE.Mesh(new THREE.SphereGeometry(0.01,8,8),M.led);
+  led.position.set(0.15,0.395,0.15);led.name='led';g.add(led);
+
+  // LCD screen — mounted on front-right side with housing
+  const lcdBox=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.04,0.012),new THREE.MeshStandardMaterial({color:0x222222,roughness:0.3,metalness:0.5}));
+  lcdBox.position.set(0.06,0.08,0.165);g.add(lcdBox);
+  const lcd=new THREE.Mesh(new THREE.BoxGeometry(0.055,0.028,0.002),new THREE.MeshStandardMaterial({color:0x001a11,emissive:0x002a18,emissiveIntensity:0.7}));
+  lcd.position.set(0.06,0.08,0.172);lcd.name='lcd';g.add(lcd);
+
+  // Spool holder on top (rod + spool that shows when loaded)
+  const rod=new THREE.Mesh(new THREE.CylinderGeometry(0.003,0.003,0.05,6),M.metalDk);
+  rod.position.set(0.12,0.44,0);rod.rotation.z=Math.PI/2;g.add(rod);
+  const spool=new THREE.Mesh(new THREE.TorusGeometry(0.025,0.01,8,12),new THREE.MeshStandardMaterial({color:0x888888,roughness:0.4}));
+  spool.position.set(0.12,0.44,0);spool.rotation.y=Math.PI/2;spool.name='spool';spool.visible=false;g.add(spool);
+
+  // Print object (grows during printing)
+  const po=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.005,0.08),new THREE.MeshStandardMaterial({color:0xeeeeee,roughness:0.45}));
+  po.position.set(0,0.055,0);po.visible=false;po.name='pobj';g.add(po);
+
+  // Print glow light
+  const glow=new THREE.PointLight(0x00aaff,0,1);
+  glow.position.set(0,0.15,0);glow.name='pglow';g.add(glow);
+
+  return g;
+}
+
+function placePrinters(){
+  prtMeshes.forEach(m=>{room.remove(m);});
+  prtMeshes=[];
+  interactables=interactables.filter(o=>o.userData?.type!=='printer');
+
+  // ABSOLUTE positions based on room layout
+  // Nook: desk top surface Y=0.77, desk spans x:-1.4..1.4, z:-1.9..-1.06
+  // From user's drawing: P1=center-left, P2=far-left, P3=center-right, P4=side-desk
+  const POSITIONS={
+    1:[ // THE NOOK — L-desk, main surface + side extension
+      {x:-0.2, y:0.77, z:-1.35},  // P1: center of desk, front area
+      {x:-0.7, y:0.77, z:-1.35},  // P2: left of P1
+      {x: 0.25,y:0.77, z:-1.35},  // P3: right of P1 (between P1 and monitor)
+      {x:-1.0, y:0.77, z:-1.0},   // P4: on side desk extension
+    ],
+    2:[ // THE GARAGE — wide workbench
+      {x:-1.2,y:0.87,z:-2.0},{x:-0.6,y:0.87,z:-2.0},{x:0.0,y:0.87,z:-2.0},{x:0.6,y:0.87,z:-2.0},
+      {x:-1.2,y:0.87,z:-1.4},{x:-0.6,y:0.87,z:-1.4},{x:0.0,y:0.87,z:-1.4},{x:0.6,y:0.87,z:-1.4},
+    ],
+    3:[ // THE DEPOT — multiple benches
+      {x:-2.8,y:0.87,z:-2.7},{x:-2.2,y:0.87,z:-2.7},{x:-1.6,y:0.87,z:-2.7},{x:-1.0,y:0.87,z:-2.7},
+      {x:0.0,y:0.87,z:-2.7},{x:0.6,y:0.87,z:-2.7},{x:1.2,y:0.87,z:-2.7},{x:1.8,y:0.87,z:-2.7},
+      {x:-2.8,y:0.87,z:-2.0},{x:-2.2,y:0.87,z:-2.0},{x:-1.6,y:0.87,z:-2.0},{x:-1.0,y:0.87,z:-2.0},
+    ],
+  };
+
+  const spots=POSITIONS[G.level]||POSITIONS[1];
+
+  G.printers.forEach((p,i)=>{
+    if(i>=spots.length)return;
+    const mesh=makePrinterMesh(p);
+    const s=spots[i];
+    mesh.position.set(s.x, s.y, s.z);
+    mesh.castShadow=true;
+    room.add(mesh);
+    prtMeshes.push(mesh);
+    mesh.userData.type='printer';
+    mesh.userData.printerId=p.id;
+    interactables.push(mesh);
+  });
+}
+
+// ===== INTERACTION =====
+function onTap(cx,cy){
+  tv.x=(cx/innerWidth)*2-1;tv.y=-(cy/innerHeight)*2+1;
+  ray.setFromCamera(tv,cam);
+  const hits=ray.intersectObjects(room.children,true);
+  for(const h of hits){
+    let o=h.object;
+    while(o&&!o.userData?.type&&o.parent!==room)o=o.parent;
+    if(!o?.userData?.type)continue;
+    if(o.userData.type==='computer'){snd('click');openComp('dashboard');return;}
+    if(o.userData.type==='printer'){snd('click');
+      const p=G.printers.find(pp=>pp.id===(o.userData.printerId||o.userData.id));
+      if(p)showHint(p);return;
+    }
+    if(o.userData.type==='deliverybox'){snd('click');shipDeliveries();return;}
+  }
+}
+
+function shipDeliveries(){
+  if(!G.deliveryBox||!G.deliveryBox.length){
+    showHintText('📦 Delivery box is empty!');return;
+  }
+  let total=0;
+  G.deliveryBox.forEach(o=>{
+    o.status='done';total+=o.reward;
+    G.cash+=o.reward;G.rep+=(5+o.tier*3)*G.repMult;G.completed++;G.money_earned+=o.reward;
+  });
+  const count=G.deliveryBox.length;
+  G.deliveryBox=[];
+  toast(`📦 Shipped ${count} orders! +$${total}`,'ok');snd('done');
+  checkAchievements();updateHUD();
+}
+
+function showHint(p){
+  const h=document.getElementById('hint');
+  let t=`🖨️ ${p.name} — `;
+  if(p.status==='printing'&&p.job) t+=`PRINTING: ${p.job.model} (${Math.round(p.progress*100)}%)`;
+  else if(p.loadedFil){const f=FILS.find(ff=>ff.id===p.loadedFil);t+=`LOADED: ${f?f.n:'?'} | READY`;}
+  else t+=`NO FILAMENT`;
+  h.textContent=t;h.style.display='block';
+  clearTimeout(h._t);h._t=setTimeout(()=>h.style.display='none',2200);
+}
+
+function showHintText(txt){
+  const h=document.getElementById('hint');h.textContent=txt;h.style.display='block';
+  clearTimeout(h._t);h._t=setTimeout(()=>h.style.display='none',2200);
+}
+
+// ===== FIRST PERSON CONTROLS =====
+let tapS=null,tapM=false;
+cv.addEventListener('pointerdown',e=>{G.dragging=true;tapM=false;try{if(!actx)snd("click");}catch(e){}G.lastP={x:e.clientX,y:e.clientY};tapS={x:e.clientX,y:e.clientY,t:Date.now()};});
+cv.addEventListener('pointermove',e=>{
+  if(!G.dragging||!G.lastP)return;
+  const dx=e.clientX-G.lastP.x,dy=e.clientY-G.lastP.y;
+  if(Math.abs(dx)>2||Math.abs(dy)>2)tapM=true;
+  G.lookYaw-=dx*0.004;
+  G.lookPitch=Math.max(-0.6,Math.min(0.5,G.lookPitch-dy*0.003));
+  G.lastP={x:e.clientX,y:e.clientY};
+});
+cv.addEventListener('pointerup',e=>{
+  G.dragging=false;
+  if(!tapM&&tapS&&Date.now()-tapS.t<250)onTap(e.clientX,e.clientY);
+  G.lastP=null;tapS=null;
+});
+cv.addEventListener('pointercancel',()=>{G.dragging=false;G.lastP=null;tapS=null;});
+
+// ===== CAMERA =====
+function updateCam(){
+  cam.position.set(G.camX,G.camY,G.camZ);
+  // Look direction from yaw/pitch
+  const lx=Math.sin(G.lookYaw)*Math.cos(G.lookPitch);
+  const ly=Math.sin(G.lookPitch);
+  const lz=-Math.cos(G.lookYaw)*Math.cos(G.lookPitch);
+  cam.lookAt(G.camX+lx,G.camY+ly,G.camZ+lz);
+}
+
+// ===== GAME LOOP =====
+function loop(){
+  requestAnimationFrame(loop);
+  if(!G.started){R.render(scene,cam);return;}
+  const dt=clk.getDelta();G.time+=dt;
+
+  // Generate orders into pending pool (silent, no popup!)
+  G.oTimer+=dt;
+  if(G.oTimer>=G.oInterval){
+    G.oTimer=0;G.oInterval=Math.max(4,8-G.level);
+    G.pendingOrders.push(genOrder());
+    document.getElementById('obadge').style.display='block';
+    if(G.pendingOrders.length===1)toast('📦 New order available! Check Orders.','i');
+  }
+
+  // Dialogue
+  G.dTimer+=dt;
+  if(G.dTimer>=G.dInterval){G.dTimer=0;G.dInterval=14+Math.random()*12;showDlg();}
+
+  // Printers
+  G.printers.forEach((p,idx)=>{
+    if(p.status==='printing'&&p.job){
+      p.progress+=dt/(p.job.printTime*(p.spd||1));
+      if(p.progress>=1){
+        p.job.printed++;
+        if(p.job.printed>=p.job.qty){
+          // All units printed — move to delivery box!
+          p.job.status='ready'; // ready for delivery
+          if(!G.deliveryBox)G.deliveryBox=[];
+          G.deliveryBox.push(p.job);
+          toast(`📦 ${p.job.model} ready! Tap delivery box to ship!`,'ok');snd('done');
+        } else {
+          // More units to print — restart on same printer
+          p.progress=0;
+          toast(`🖨️ ${p.job.model} ${p.job.printed}/${p.job.qty} done`,'i');
+          return; // keep printing
+        }
+        p.status='idle';p.job=null;p.progress=0;updateHUD();
+        if(G.autoAssign)autoAssign();
+      }
+      // Animate
+      const m=prtMeshes[idx];if(!m)return;
+      const ext=m.getObjectByName('ext'),noz=m.getObjectByName('noz'),po=m.getObjectByName('pobj'),led=m.getObjectByName('led'),gl=m.getObjectByName('pglow');
+      if(ext){ext.position.x=Math.sin(G.time*5+idx*2)*0.06;ext.position.z=Math.cos(G.time*4+idx*2)*0.05;}
+      if(noz){noz.position.x=ext.position.x;noz.position.z=ext.position.z;}
+      if(po){po.visible=true;po.scale.y=Math.max(1,p.progress*15);po.position.y=0.055+p.progress*0.08;const fd=FILS.find(f=>f.id===p.fil);if(fd)po.material.color.set(fd.color);}
+      if(led)led.material=p.progress>0.8?M.led:M.ledB;
+      if(gl){gl.intensity=0.3+Math.sin(G.time*3)*0.1;}
+    } else {
+      const m=prtMeshes[idx];if(!m)return;
+      const po=m.getObjectByName('pobj'),led=m.getObjectByName('led'),gl=m.getObjectByName('pglow');
+      if(po){po.visible=false;po.scale.y=1;}
+      if(led)led.material=M.led;if(gl)gl.intensity=0;
+    }
+  });
+
+  updateCam();R.render(scene,cam);
+}
+
+// ===== HUD =====
+function updateHUD(){
+  document.getElementById('hc').textContent='$'+G.cash.toLocaleString();
+  document.getElementById('ho').textContent=G.orders.filter(o=>o.status!=='done').length+'+'+G.pendingOrders.length;
+  document.getElementById('hp').textContent=G.printers.length+'/'+LEVELS[G.level-1].max;
+  document.getElementById('hr').textContent=G.rep;
+  document.getElementById('hlvl').textContent=`LVL ${G.level} • ${LEVELS[G.level-1].name}`;
+  document.getElementById('obadge').style.display=G.pendingOrders.length?'block':'none';
+}
+function toast(m,t='i'){const e=document.createElement('div');e.className='toast '+t;e.textContent=m;document.body.appendChild(e);setTimeout(()=>e.remove(),3000);}
+function showDlg(c){const d=c||DLGS[Math.floor(Math.random()*DLGS.length)];document.getElementById('dsp').textContent=d.s;document.getElementById('dtxt').textContent=d.t;const el=document.getElementById('dlg');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),4200);}
+
+// ===== ORDERS (no popup! managed via computer) =====
+function genOrder(){
+  const pool=G.level>=3?[1,1,2,2,3]:G.level>=2?[1,1,2,2]:[1,1,1,2];
+  const tier=pool[Math.floor(Math.random()*pool.length)];
+  const mdl=MODELS[tier][Math.floor(Math.random()*MODELS[tier].length)];
+  const qty=Math.floor(Math.random()*3)+1;const fil=FILS[Math.floor(Math.random()*FILS.length)];
+  return{id:'ORD-'+String(Date.now()).slice(-4)+Math.floor(Math.random()*10),client:CLIENTS[Math.floor(Math.random()*CLIENTS.length)],model:mdl.name,tier,filId:fil.id,filName:fil.n,filColor:fil.color,qty,printTime:mdl.time,reward:Math.floor(mdl.reward*qty*(1+Math.random()*0.3)),status:'pending',printed:0};
+}
+function loadFilament(pid,fid){
+  const p=G.printers.find(x=>x.id===pid);if(!p)return;
+  if(p.status==='printing'){toast('Printer busy!','w');snd('err');return;}
+  if(G.filament[fid]<1){toast('No stock!','e');snd('err');return;}
+  if(p.loadedFil){G.filament[p.loadedFil]++;}// return old spool
+  G.filament[fid]--;p.loadedFil=fid;
+  const f=FILS.find(ff=>ff.id===fid);
+  toast(`🧵 Loaded ${f?f.n:''} → ${p.name}`,'ok');snd('load');
+  // Update spool visual on 3D printer
+  const idx=G.printers.indexOf(p);
+  if(prtMeshes[idx]){const sp=prtMeshes[idx].getObjectByName('spool');if(sp){sp.visible=true;if(f)sp.material.color.set(f.color);}}
+  updateHUD();
+}
+window.doLoad=function(pid,fid){if(!fid)return;loadFilament(pid,fid);swTab('printers');};
+
+function assignOrder(oid,pid){
+  const o=G.orders.find(x=>x.id===oid),p=G.printers.find(x=>x.id===pid);
+  if(!o||!p||p.status!=='idle')return;
+  // Check loaded filament matches
+  if(!p.loadedFil){toast(`Load filament into ${p.name} first!`,'e');snd('err');return;}
+  if(p.loadedFil!==o.filId){const need=FILS.find(f=>f.id===o.filId);toast(`Wrong filament! Need ${need?need.n:'?'}`,'e');snd('err');return;}
+  o.status='printing';p.status='printing';p.job=o;p.progress=0;p.fil=o.filId;
+  toast(`🖨️ P${p.id} → ${o.model}`,'i');snd('ok');updateHUD();
+}
+function autoAssign(){const q=G.orders.filter(o=>o.status==='pending');const idle=G.printers.filter(p=>p.status==='idle');for(const p of idle){if(!q.length)break;const o=q.find(oo=>p.loadedFil===oo.filId);if(o){q.splice(q.indexOf(o),1);assignOrder(o.id,p.id);}}}
+
+// ===== ACHIEVEMENTS =====
+function checkAchievements(){
+  const a=G.achievements;
+  if(G.completed>=1&&!a.includes('first')){a.push('first');toast('🏆 First Print!','ok');snd('done');}
+  if(G.completed>=10&&!a.includes('ten')){a.push('ten');toast('🏆 ACHIEVEMENT: Print Veteran (10 prints)!','ok');}
+  if(G.money_earned>=1000&&!a.includes('1k')){a.push('1k');toast('🏆 ACHIEVEMENT: Thousandaire! $1000 earned!','ok');}
+  if(G.money_earned>=10000&&!a.includes('10k')){a.push('10k');toast('🏆 ACHIEVEMENT: Print Mogul! $10K earned!','ok');}
+  if(G.printers.length>=4&&!a.includes('farm')){a.push('farm');toast('🏆 ACHIEVEMENT: Print Farm! 4 printers running!','ok');}
+  if(G.level===1&&G.cash>=5000&&!a.includes('hint1')){a.push('hint1');showDlg({s:'PRINT-BOT 3000',t:"Boss! This desk is cramping our style. Time for the Garage! Check Upgrades! 🏭"});}
+  if(G.level===2&&G.cash>=20000&&!a.includes('hint2')){a.push('hint2');showDlg({s:'PRINT-BOT 3000',t:"We need MORE SPACE! The Depot awaits! 🚀"});}
+}
+
+// ===== COMPUTER =====
+function openComp(tab){G.paused=true;document.getElementById('comp').classList.add('open');swTab(tab||'dashboard');}
+function closeComp(){G.paused=false;document.getElementById('comp').classList.remove('open');}
+window.openComp=openComp;window.closeComp=closeComp;
+
+function swTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.t===tab));
+  const s=document.getElementById('cscr');
+  ({dashboard:renderDash,orders:renderOrders,active:renderActive,deliveries:renderDeliveries,printers:renderPrinters,filament:renderShop,upgrade:renderUpgrades})[tab]?.(s);
+}
+window.swTab=swTab;
+
+function renderDash(el){
+  const act=G.printers.filter(p=>p.status==='printing').length;
+  const eff=G.printers.length?Math.round(act/G.printers.length*100):0;
+  const sp=Object.values(G.filament).reduce((a,b)=>a+b,0);
+  el.innerHTML=`<div class="dg">
+    <div class="dc"><h4>💰 Balance</h4><div class="v g">$${G.cash.toLocaleString()}</div></div>
+    <div class="dc"><h4>🖨️ Active</h4><div class="v c">${act}/${G.printers.length}</div></div>
+    <div class="dc"><h4>📦 Pending</h4><div class="v" style="color:#ffaa00">${G.pendingOrders.length}</div></div>
+    <div class="dc"><h4>📋 In Progress</h4><div class="v p">${G.orders.filter(o=>o.status!=='done'&&o.status!=='ready').length}</div></div>
+    <div class="dc"><h4>📦 To Ship</h4><div class="v g">${(G.deliveryBox||[]).length}</div></div>
+    <div class="dc"><h4>🧵 Spools</h4><div class="v g">${sp}</div></div>
+    <div class="dc"><h4>⚡ Efficiency</h4><div class="v ${eff>70?'g':eff>30?'c':'r'}">${eff}%</div></div>
+    <div class="dc"><h4>⭐ Rep</h4><div class="v c">${G.rep}</div></div>
+    <div class="dc"><h4>✅ Done</h4><div class="v g">${G.completed}</div></div>
+  </div>
+  <div style="margin-top:12px;padding:8px;background:rgba(255,255,255,.025);border-radius:4px;border:1px solid rgba(255,255,255,.04)">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.55rem;color:#555;line-height:1.8">
+    > Status: ${eff>70?'🟢 OPTIMAL':eff>30?'🟡 RUNNING':'🔴 IDLE'} | Sync: 99.${Math.floor(Math.random()*9)}%<br>
+    > 🏆 Achievements: ${G.achievements.length} unlocked<br>
+    > Tip: ${['Buy filament before accepting orders!','Keep all printers busy for max $$$!','Upgrade your space when you can afford it!','Tap printers in 3D view for quick status!'][Math.floor(Math.random()*4)]}
+    </div>
+  </div>`;
+}
+
+function renderOrders(el){
+  const pending=G.pendingOrders;
+  let h=`<div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#ffaa00;margin-bottom:6px">📦 INCOMING ORDERS (${pending.length})</div>`;
+  if(!pending.length){h+=`<div style="text-align:center;padding:20px;color:#555;font-size:.6rem;font-style:italic">No incoming orders right now... they'll come!</div>`;}
+  else{
+    h+=`<div style="display:grid;gap:6px">`;
+    pending.forEach((o,i)=>{
+      h+=`<div style="background:rgba(255,170,0,.06);border:1px solid #ffaa0030;border-radius:4px;padding:8px;display:flex;justify-content:space-between;align-items:center">
+        <div><strong style="font-size:.65rem">${o.model}</strong> <span style="font-size:.5rem;color:#888">T${o.tier}</span><br>
+        <span style="font-size:.55rem;color:#aaa">${o.client} • <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${o.filColor};vertical-align:middle"></span> ${o.filName} ×${o.qty}</span></div>
+        <div style="text-align:right"><div style="color:#00ff88;font-family:'Share Tech Mono',monospace;font-size:.7rem;font-weight:700">$${o.reward}</div>
+        <button onclick="acceptOrd(${i})" style="margin-top:3px;padding:3px 8px;font-size:.5rem;background:#00ff8820;border:1px solid #00ff88;color:#00ff88;border-radius:2px;cursor:pointer;font-family:'Share Tech Mono',monospace">ACCEPT</button>
+        <button onclick="decOrd(${i})" style="margin-top:3px;padding:3px 6px;font-size:.5rem;background:#ff2d5520;border:1px solid #ff2d55;color:#ff2d55;border-radius:2px;cursor:pointer;font-family:'Share Tech Mono',monospace;margin-left:3px">✕</button>
+        </div></div>`;
+    });
+    h+=`</div>`;
+  }
+  el.innerHTML=h;
+}
+
+function renderActive(el){
+  const active=G.orders.filter(o=>o.status!=='done'&&o.status!=='ready');
+  const idle=G.printers.filter(p=>p.status==='idle');
+  let h=`<div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#00f0ff;margin-bottom:6px">📊 ACTIVE JOBS (${active.length})</div>`;
+  if(!active.length){h+=`<div style="text-align:center;padding:20px;color:#555;font-size:.6rem;font-style:italic">No active jobs. Accept orders first!</div>`;}
+  else{
+    h+=`<table class="ot"><thead><tr><th>Model</th><th>Material</th><th>$</th><th>Status</th><th>Assign</th></tr></thead><tbody>`;
+    active.forEach(o=>{
+      let act='';
+      if(o.status==='pending'){
+        const ready=idle.filter(pp=>pp.loadedFil===o.filId);
+        act=ready.length?`<select onchange="doAssign('${o.id}',this.value)" style="background:#111;color:#00f0ff;border:1px solid #00f0ff33;border-radius:2px;padding:1px;font-size:.5rem;font-family:'Share Tech Mono',monospace"><option value="">Assign→</option>${ready.map(p=>`<option value="${p.id}">P${p.id}</option>`).join('')}</select>`:'<span style="font-size:.45rem;color:#ff4444">Load filament!</span>';
+      } else if(o.status==='printing'){
+        const pr=G.printers.find(p=>p.job?.id===o.id);
+        act=pr?`<span style="font-size:.5rem;color:#00f0ff">${Math.round(pr.progress*100)}% (${o.printed}/${o.qty})</span>`:'';
+      }
+      h+=`<tr><td style="font-size:.55rem"><strong>${o.model}</strong></td><td><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${o.filColor};vertical-align:middle;margin-right:2px"></span><span style="font-size:.5rem">${o.filName}</span></td><td style="color:#00ff88;font-size:.55rem">$${o.reward}</td><td><span class="bd ${o.status==='printing'?'pr':'q'}">${o.status==='printing'?'PRINTING':'QUEUED'}</span></td><td>${act}</td></tr>`;
+    });
+    h+=`</tbody></table>`;
+  }
+  el.innerHTML=h;
+}
+
+function renderDeliveries(el){
+  const box=G.deliveryBox||[];
+  let h=`<div style="font-family:'Share Tech Mono',monospace;font-size:.6rem;color:#00ff88;margin-bottom:6px">📦 DELIVERY BOX (${box.length} ready to ship)</div>`;
+  if(!box.length){h+=`<div style="text-align:center;padding:20px;color:#555;font-size:.6rem;font-style:italic">No completed prints yet. They'll appear here when done!</div>`;}
+  else{
+    let total=0;
+    h+=`<div style="display:grid;gap:5px;margin-bottom:12px">`;
+    box.forEach(o=>{total+=o.reward;
+      h+=`<div style="background:rgba(0,255,136,.05);border:1px solid #00ff8830;border-radius:4px;padding:8px;display:flex;justify-content:space-between;align-items:center">
+        <div><strong style="font-size:.6rem">${o.model}</strong> <span style="font-size:.45rem;color:#888">×${o.qty}</span><br>
+        <span style="font-size:.5rem;color:#aaa">${o.client}</span></div>
+        <div style="color:#00ff88;font-family:'Share Tech Mono',monospace;font-size:.65rem;font-weight:700">$${o.reward}</div>
+      </div>`;
+    });
+    h+=`</div>`;
+    h+=`<div style="text-align:center;padding:8px;background:rgba(0,255,136,.08);border:1px solid #00ff8840;border-radius:4px">
+      <div style="font-size:.55rem;color:#888;margin-bottom:4px">Total: <strong style="color:#00ff88;font-size:.7rem">$${total}</strong></div>
+      <button onclick="shipAll()" style="padding:6px 20px;font-size:.6rem;background:#00ff8825;border:2px solid #00ff88;color:#00ff88;border-radius:4px;cursor:pointer;font-family:'Orbitron',monospace;font-weight:700;letter-spacing:.05em">🚚 SHIP ALL</button>
+    </div>`;
+  }
+  el.innerHTML=h;
+}
+window.shipAll=function(){shipDeliveries();swTab('deliveries');};
+
+function renderPrinters(el){
+  const mx=LEVELS[G.level-1].max,cost=Math.floor((200+G.printers.length*150)*G.prtDiscount);
+  let h=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <span style="font-size:.65rem;color:#888">${G.printers.length}/${mx} printers</span>
+    ${G.printers.length<mx?`<button onclick="buyPrt()" style="padding:4px 10px;font-size:.55rem;background:#00f0ff18;border:1px solid #00f0ff;color:#00f0ff;border-radius:3px;cursor:pointer;font-family:'Share Tech Mono',monospace">+ BUY ($${cost})</button>`:'<span style="font-size:.55rem;color:#ffaa00">MAX</span>'}
+  </div><div class="pg">`;
+  G.printers.forEach(p=>{
+    const filData=p.loadedFil?FILS.find(f=>f.id===p.loadedFil):null;
+    const filDot=filData?`<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${filData.color};vertical-align:middle;margin-right:2px"></span>${filData.n}`:'<span style="color:#ff4444;font-size:.45rem">NO FILAMENT</span>';
+    h+=`<div class="pc ${p.status==='printing'?'act':''}">
+      <div style="font-family:'Orbitron',monospace;font-size:.6rem;font-weight:700;color:${new THREE.Color(p.color).getStyle()}">${p.name}</div>
+      <div style="font-size:.48rem;margin-top:2px;color:${p.status==='printing'?'#00f0ff':'#666'}">${p.status==='printing'?`PRINTING: ${p.job.model}`:'IDLE'}</div>
+      <div style="font-size:.45rem;margin-top:3px">🧵 ${filDot}</div>
+      ${p.status==='printing'?`<div class="pb"><div class="pf" style="width:${Math.round(p.progress*100)}%"></div></div><div style="font-size:.42rem;color:#555;margin-top:2px;font-family:'Share Tech Mono',monospace">${Math.round(p.progress*100)}% • ~${Math.ceil(p.job.printTime*(p.spd||1)*(1-p.progress))}s</div>`:
+      `<div style="margin-top:4px"><select onchange="doLoad(${p.id},this.value)" style="background:#111;color:#7b2ff7;border:1px solid #7b2ff730;border-radius:2px;padding:2px;font-size:.45rem;font-family:'Share Tech Mono',monospace;width:100%">
+        <option value="">Load filament...</option>
+        ${Object.entries(G.filament).filter(([,v])=>v>0).map(([k])=>{const f=FILS.find(ff=>ff.id===k);return f?`<option value="${k}">${f.n} (×${G.filament[k]})</option>`:''}).join('')}
+      </select></div>`}
+    </div>`;
+  });
+  h+=`</div>`;el.innerHTML=h;
+}
+
+function renderShop(el){
+  const owned=Object.entries(G.filament).filter(([,v])=>v>0);
+  let h=`<div style="font-size:.65rem;color:#888;margin-bottom:8px">🧵 Filament Shop</div>`;
+  if(owned.length){
+    h+=`<div style="margin-bottom:12px"><div style="font-family:'Share Tech Mono',monospace;font-size:.55rem;color:#00f0ff;margin-bottom:5px">YOUR STOCK</div><div style="display:flex;flex-wrap:wrap;gap:5px">`;
+    owned.forEach(([k,v])=>{const f=FILS.find(ff=>ff.id===k);if(f)h+=`<div style="display:flex;align-items:center;gap:2px;padding:2px 5px;background:rgba(255,255,255,.03);border-radius:2px"><span style="width:7px;height:7px;border-radius:50%;background:${f.color};display:inline-block"></span><span style="font-size:.55rem">${f.n}</span><span style="font-size:.55rem;color:#00ff88;font-family:'Share Tech Mono',monospace">×${v}</span></div>`;});
+    h+=`</div></div>`;
+  }
+  h+=`<div class="sg">`;
+  FILS.forEach(f=>{const pr=Math.floor(f.price*G.filDiscount);
+    h+=`<div class="si" onclick="buyFil('${f.id}')"><div class="sv2" style="background:radial-gradient(circle,${f.color} 35%,${f.color}88)"></div><div style="font-size:.6rem;font-weight:600">${f.n}</div><div style="font-size:.45rem;color:#777">${f.t}</div><div style="font-family:'Share Tech Mono',monospace;font-size:.65rem;color:#00ff88;margin-top:2px">$${pr}</div><div style="font-size:.45rem;color:#555">×${G.filament[f.id]}</div></div>`;
+  });
+  h+=`</div>`;el.innerHTML=h;
+}
+
+function renderUpgrades(el){
+  let h=`<div style="font-size:.65rem;color:#888;margin-bottom:8px">⬆️ Upgrades</div>`;
+  if(G.level<3){const nl=LEVELS[G.level];
+    h+=`<div class="ui" style="border-color:#7b2ff730;margin-bottom:12px"><div style="font-size:1.4rem">🏭</div><div style="flex:1"><div style="font-weight:700;font-size:.7rem;color:#7b2ff7">Upgrade to ${nl.name}</div><div style="font-size:.55rem;color:#777;margin-top:1px">Max ${nl.max} printers</div><div style="font-family:'Share Tech Mono',monospace;color:#00ff88;font-size:.65rem;margin-top:1px">$${nl.cost.toLocaleString()}</div></div><button class="ub" onclick="lvlUp()" ${G.cash<nl.cost?'disabled':''}>UPGRADE</button></div>`;
+  }
+  UPGRADES.forEach(u=>{
+    h+=`<div class="ui" style="${u.done?'opacity:.4':''}"><div style="font-size:1.3rem">${u.icon}</div><div style="flex:1"><div style="font-weight:700;font-size:.65rem">${u.name}</div><div style="font-size:.5rem;color:#777;margin-top:1px">${u.desc}</div><div style="font-family:'Share Tech Mono',monospace;color:${u.done?'#00ff88':'#ccc'};font-size:.6rem;margin-top:1px">${u.done?'✅':'$'+u.cost}</div></div>${!u.done?`<button class="ub" onclick="buyUpg('${u.id}')" ${G.cash<u.cost?'disabled':''}>BUY</button>`:''}</div>`;
+  });
+  el.innerHTML=h;
+}
+
+// ===== ACTIONS =====
+window.acceptOrd=function(i){
+  if(i>=G.pendingOrders.length)return;
+  const o=G.pendingOrders.splice(i,1)[0];o.status='pending';G.orders.push(o);
+  toast(`Accepted: ${o.model} from ${o.client}!`,'ok');updateHUD();
+  if(G.autoAssign)autoAssign();swTab('orders');
+};
+window.decOrd=function(i){
+  if(i>=G.pendingOrders.length)return;
+  G.pendingOrders.splice(i,1);toast('Order declined.','w');snd('err');updateHUD();swTab('orders');
+};
+window.doAssign=function(oid,pid){if(!pid)return;assignOrder(oid,parseInt(pid));swTab('orders');};
+window.buyFil=function(fid){const f=FILS.find(ff=>ff.id===fid);if(!f)return;const pr=Math.floor(f.price*G.filDiscount);if(G.cash<pr){toast(`Need $${pr}!`,'e');return;}G.cash-=pr;G.filament[fid]++;updateHUD();toast(`Bought ${f.n}!`,'ok');snd('buy');swTab('filament');};
+window.buyUpg=function(uid){const u=UPGRADES.find(uu=>uu.id===uid);if(!u||u.done)return;if(G.cash<u.cost){toast('Not enough!','e');return;}G.cash-=u.cost;u.done=true;u.fn();updateHUD();toast(`${u.name} active! ${u.icon}`,'ok');swTab('upgrade');};
+window.buyPrt=function(){
+  const mx=LEVELS[G.level-1].max;if(G.printers.length>=mx)return;
+  const cost=Math.floor((200+G.printers.length*150)*G.prtDiscount);
+  if(G.cash<cost){toast(`Need $${cost}!`,'e');return;}
+  G.cash-=cost;const cols=[0x333,0x1a5276,0x7b241c,0x1e8449,0x6c3483,0x2e4053,0xb9770e,0x117a65];
+  const id=G.printers.length+1;
+  G.printers.push({id,name:`Printer ${id}`,color:cols[(id-1)%cols.length],status:'idle',job:null,progress:0,spd:1,fil:null,loadedFil:null});
+  placePrinters();updateHUD();toast(`Printer ${id} online!`,'ok');snd('buy');swTab('printers');
+};
+window.lvlUp=function(){if(G.level>=3)return;const c=LEVELS[G.level].cost;if(G.cash<c){toast('Not enough!','e');return;}G.cash-=c;G.level++;buildRoom(G.level);placePrinters();updateHUD();toast(`🏭 UPGRADED: ${LEVELS[G.level-1].name}!`,'ok');swTab('upgrade');};
+
+// ===== TUTORIAL =====
+const TUTS=[
+  {t:'Welcome to LAYER ZERO!',p:'You\'re standing in your tiny print nook. Drag to look around — it\'s YOUR space! Build a 3D printing empire from this humble desk.'},
+  {t:'👆 Tap Things!',p:'Tap printers to see their status. Tap the computer monitor to open CMD Center. Everything in this room is interactive!'},
+  {t:'📋 How Orders Work',p:'Orders arrive silently — look for the orange badge. Open CMD > Orders to accept and assign them to printers. No more annoying popups!'},
+  {t:'🧵 Filament & Delivery',p:'Buy filament → Load into printer → Accept order → Assign to printer → When done, tap the DELIVERY BOX on the floor to ship and earn cash!'},
+  {t:'💰 Grow Your Empire',p:'Earn cash → buy printers → buy upgrades → upgrade your whole workspace from Nook → Garage → Depot! Go get \'em! 🚀'},
+];
+function showTut(){G.tutStep=0;rTut();document.getElementById('tut').classList.add('show');}
+function rTut(){document.getElementById('tt').textContent=TUTS[G.tutStep].t;document.getElementById('tp').textContent=TUTS[G.tutStep].p;document.querySelector('.tn').textContent=G.tutStep<TUTS.length-1?'NEXT →':'LET\'S PRINT!';}
+window.nextTut=function(){G.tutStep++;if(G.tutStep>=TUTS.length){document.getElementById('tut').classList.remove('show');return;}rTut();};
+
+// ===== START =====
+function startGame(){
+  document.getElementById('splash').style.display='none';
+  document.getElementById('hud').style.display='block';
+  document.getElementById('bar').style.display='flex';
+  G.started=true;
+  try{
+    buildRoom(1);
+    G.printers.push({id:1,name:'Printer 1',color:0x333333,status:'idle',job:null,progress:0,spd:1,fil:null,loadedFil:null});
+    placePrinters();
+    loadAllGLBs(); // try loading .glb models from models/ folder
+    console.log('Printers in scene:',prtMeshes.length);
+  }catch(e){console.error('BUILD ERROR:',e);}
+  updateHUD();showTut();
+  setTimeout(()=>{G.pendingOrders.push(genOrder());document.getElementById('obadge').style.display='block';toast('📦 Your first order arrived! Open CMD > Orders','i');updateHUD();},5000);
+}
+window.startGame=startGame;
+window.addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
+cam.position.set(0,1.5,2);cam.lookAt(0,1,0);
+loop();
+</script>
+
+</body>
+</html>
