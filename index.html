@@ -158,10 +158,10 @@ const MODEL_CONFIG={
   desk:    {path:'Models/desk.glb',    scale:0.5,  pos:[0, 0, -1.48], rot:[0,0,0]},
   spool:   {path:'Models/spool.glb',   scale:0.15, pos:[2.0, 1.53, -1.2], rot:[0,0,0]},
   monitor: {path:'Models/monitor.glb', scale:0.15, pos:[0.65, 0.77, -1.62], rot:[0,0,0]},
-  mug:     {path:'Models/mug.glb',     scale:0.08, pos:[0.95, 0.77, -1.32], rot:[0,0,0]},
+  mug:     {path:'Models/mug.glb',     scale:0.08, pos:[0.95, 0.77, -1.3], rot:[0,0,0]},
   lamp:    {path:'Models/lamp.glb',    scale:0.1,  pos:[1.15, 0.77, -1.65], rot:[0,0,0]},
   chair:   {path:'Models/chair.glb',   scale:0.15, pos:[0.65, 0, -0.65], rot:[0,0,0]},
-  box:     {path:'Models/box.glb',     scale:0.25, pos:[1.5, 0, 0.2], rot:[0,0,0]},
+  box:     {path:'Models/box.glb',     scale:0.35, pos:[1.2, 0, 0.0], rot:[0,0,0]},
   clock:   {path:'Models/clock.glb',   scale:0.15, pos:[1.2, 1.85, -1.94], rot:[0,0,0]},
 };
 
@@ -460,14 +460,14 @@ function buildNook(){
   for(let a=0;a<4;a++){const ax=Math.cos(a*Math.PI/2+0.4)*0.13,az=Math.sin(a*Math.PI/2+0.4)*0.13;
     const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.01,0.012,0.46,6),M.metalDk);leg.position.set(0.65+ax,0.23,-D/2+1.4+az);leg.rotation.x=(az>0?-1:1)*0.06;leg.rotation.z=(ax>0?1:-1)*0.06;room.add(leg);}
 
-  // === DELIVERY BOX (on floor, right side of desk) ===
-  const dbox=B(0.4,0.28,0.35,new THREE.MeshStandardMaterial({color:0xc4a060,roughness:0.9}),1.5,0.14,0.2);
+  // === DELIVERY BOX (on floor, right side of desk, bigger) ===
+  const dbox=B(0.55,0.38,0.45,new THREE.MeshStandardMaterial({color:0xc4a060,roughness:0.9}),1.2,0.19,0.0);
   dbox.userData.type='deliverybox';interactables.push(dbox);
   // Box flaps (open)
-  B(0.38,0.01,0.12,new THREE.MeshStandardMaterial({color:0xb89550,roughness:0.9}),1.5,0.29,0.05);
-  B(0.38,0.01,0.12,new THREE.MeshStandardMaterial({color:0xb89550,roughness:0.9}),1.5,0.29,0.35);
+  B(0.5,0.012,0.15,new THREE.MeshStandardMaterial({color:0xb89550,roughness:0.9}),1.2,0.39,-0.18);
+  B(0.5,0.012,0.15,new THREE.MeshStandardMaterial({color:0xb89550,roughness:0.9}),1.2,0.39,0.18);
   // Shipping label
-  B(0.12,0.08,0.001,M.white,1.5,0.18,0.38);
+  B(0.15,0.1,0.001,M.white,1.2,0.22,0.23);
 
   // === WALL CLOCK ===
   const clockFace=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.015,20),M.white);
@@ -489,46 +489,31 @@ function buildNook(){
     bx+=0.07+Math.random()*0.03;
   }
 
-  // === FILAMENT SPOOL STORAGE WALL (back wall, left side) ===
-  // Shelf bracket system - 3 shelves
+  // === FILAMENT SPOOL STORAGE (back wall, 2 shelves, pulled forward) ===
   const shelfColors=[
     [0xe53935,0x43a047,0x1e88e5,0xeeeeee], // shelf 1: red, green, blue, white
     [0x333333,0xb3e5fc,0x0d47a1,0xc62828], // shelf 2: black, clear, petg blue, abs red
-    [0x212121,0x37474f,0x43a047,0xe53935], // shelf 3: abs black, carbon, green, red
   ];
-  for(let sy=0;sy<3;sy++){
-    const shelfY=1.0+sy*0.42;
-    // Shelf plank
-    B(1.4,0.025,0.18,M.wood,-0.8,shelfY,-D/2+0.1);
-    // Shelf brackets
+  for(let sy=0;sy<2;sy++){
+    const shelfY=1.05+sy*0.42;
+    B(1.4,0.025,0.18,M.wood,-0.8,shelfY,-D/2+0.18);
     for(let bx of[-1.4,-0.2]){
-      B(0.02,0.02,0.16,M.metalDk,bx,shelfY-0.015,-D/2+0.1);
-      B(0.02,0.12,0.02,M.metalDk,bx,shelfY-0.07,-D/2+0.04);
+      B(0.02,0.02,0.16,M.metalDk,bx,shelfY-0.015,-D/2+0.18);
+      B(0.02,0.12,0.02,M.metalDk,bx,shelfY-0.07,-D/2+0.1);
     }
-    // Spools on this shelf
     const colors=shelfColors[sy];
     for(let si=0;si<colors.length;si++){
       const sx=-1.3+si*0.32;
-      // Spool core (dark cylinder)
       const core=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,0.06,12),new THREE.MeshStandardMaterial({color:0x444444,roughness:0.5}));
-      core.position.set(sx,shelfY+0.06,-D/2+0.1);
-      core.rotation.x=Math.PI/2;
-      room.add(core);
-      // Filament ring (colored)
+      core.position.set(sx,shelfY+0.06,-D/2+0.18);core.rotation.x=Math.PI/2;room.add(core);
       const ring=new THREE.Mesh(new THREE.TorusGeometry(0.055,0.018,8,16),new THREE.MeshStandardMaterial({color:colors[si],roughness:0.35}));
-      ring.position.set(sx,shelfY+0.06,-D/2+0.1);
-      room.add(ring);
-      // Side flanges
+      ring.position.set(sx,shelfY+0.06,-D/2+0.18);room.add(ring);
       for(let dz of[-0.03,0.03]){
         const flange=new THREE.Mesh(new THREE.CylinderGeometry(0.065,0.065,0.003,14),new THREE.MeshStandardMaterial({color:0x555555,roughness:0.3}));
-        flange.position.set(sx,shelfY+0.06,-D/2+0.1+dz);
-        flange.rotation.x=Math.PI/2;
-        room.add(flange);
+        flange.position.set(sx,shelfY+0.06,-D/2+0.18+dz);flange.rotation.x=Math.PI/2;room.add(flange);
       }
     }
   }
-  // Label above shelves
-  B(0.5,0.02,0.01,M.metalDk,-0.8,2.3,-D/2+0.06);
 
   // === SMALL POTTED PLANT (far corner of side desk) ===
   Cyl(0.06,0.045,0.1,new THREE.MeshStandardMaterial({color:0xb86633,roughness:0.88}),-1.25,0.82,-D/2+1.25);
@@ -542,9 +527,12 @@ function buildNook(){
   B(0.06,0.003,0.06,new THREE.MeshStandardMaterial({color:0xffee55,roughness:0.95}),0.4,0.77,-D/2+0.55);
   B(0.06,0.003,0.06,new THREE.MeshStandardMaterial({color:0xff88aa,roughness:0.95}),0.48,0.773,-D/2+0.58);
 
-  // === SPOOL SHELF (right wall) ===
-  B(0.8,0.035,0.2,M.wood,W/2-0.15,1.5,-D/2+0.8,0,0);
-  // Spools will be placed dynamically
+  // === RIGHT WALL SHELF with small plant ===
+  B(0.8,0.035,0.2,M.wood,W/2-0.15,1.5,-D/2+0.8);
+  // Small succulent plant on shelf
+  Cyl(0.035,0.03,0.05,new THREE.MeshStandardMaterial({color:0xc4885a,roughness:0.9}),W/2-0.15,1.55,-D/2+0.8);
+  const succulent=new THREE.Mesh(new THREE.SphereGeometry(0.045,8,6),new THREE.MeshStandardMaterial({color:0x5a9a4a,roughness:0.7}));
+  succulent.position.set(W/2-0.15,1.6,-D/2+0.8);succulent.scale.y=0.7;room.add(succulent);
 
   // === LEFT WALL (clean, window is here) ===
 
