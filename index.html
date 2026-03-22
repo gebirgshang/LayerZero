@@ -136,32 +136,32 @@ canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1}
 // =======================================================
 
 // ===== GLB MODEL LOADER =====
-// Place .glb files in a "models/" folder next to index.html
+// Place .glb files in a "Models/" folder next to index.html
 // Supported models (add any of these and they auto-replace the primitive):
-//   models/plant.glb    — potted plant on side desk
-//   models/printer.glb  — 3D printer (replaces all printer instances)
-//   models/desk.glb     — L-shaped desk
-//   models/spool.glb    — filament spool
-//   models/monitor.glb  — computer monitor
-//   models/mug.glb      — coffee mug
-//   models/lamp.glb     — desk lamp
-//   models/chair.glb    — stool/chair
-//   models/box.glb      — delivery box
-//   models/clock.glb    — wall clock
+//   Models/plant.glb    — potted plant on side desk
+//   Models/printer.glb  — 3D printer (replaces all printer instances)
+//   Models/desk.glb     — L-shaped desk
+//   Models/spool.glb    — filament spool
+//   Models/monitor.glb  — computer monitor
+//   Models/mug.glb      — coffee mug
+//   Models/lamp.glb     — desk lamp
+//   Models/chair.glb    — stool/chair
+//   Models/box.glb      — delivery box
+//   Models/clock.glb    — wall clock
 const glbLoader=new THREE.GLTFLoader();
 const loadedModels={};
 const MODEL_CONFIG={
   // name:  { path, scale, pos:[x,y,z], rot:[x,y,z] (radians) }
-  plant:   {path:'models/plant.glb',   scale:0.25, pos:[-1.25, 0.77, -0.75], rot:[0,0,0]},
-  printer: {path:'models/printer.glb', scale:0.3,  pos:[0,0,0], rot:[0,0,0]}, // applied per-printer
-  desk:    {path:'models/desk.glb',    scale:0.5,  pos:[0, 0, -1.48], rot:[0,0,0]},
-  spool:   {path:'models/spool.glb',   scale:0.1,  pos:[0,0,0], rot:[0,0,0]},
-  monitor: {path:'models/monitor.glb', scale:0.3,  pos:[0.65, 0.77, -1.62], rot:[0,0,0]},
-  mug:     {path:'models/mug.glb',     scale:0.15, pos:[0.95, 0.77, -1.32], rot:[0,0,0]},
-  lamp:    {path:'models/lamp.glb',    scale:0.25, pos:[1.15, 0.77, -1.65], rot:[0,0,0]},
-  chair:   {path:'models/chair.glb',   scale:0.3,  pos:[0.65, 0, -0.65], rot:[0,0,0]},
-  box:     {path:'models/box.glb',     scale:0.3,  pos:[1.5, 0, 0.2], rot:[0,0,0]},
-  clock:   {path:'models/clock.glb',   scale:0.15, pos:[1.2, 1.9, -1.94], rot:[0,0,0]},
+  plant:   {path:'Models/plant.glb',   scale:0.25, pos:[-1.25, 0.77, -0.75], rot:[0,0,0]},
+  printer: {path:'Models/printer.glb', scale:0.3,  pos:[0,0,0], rot:[0,0,0]}, // applied per-printer
+  desk:    {path:'Models/desk.glb',    scale:0.5,  pos:[0, 0, -1.48], rot:[0,0,0]},
+  spool:   {path:'Models/spool.glb',   scale:0.1,  pos:[0,0,0], rot:[0,0,0]},
+  monitor: {path:'Models/monitor.glb', scale:0.3,  pos:[0.65, 0.77, -1.62], rot:[0,0,0]},
+  mug:     {path:'Models/mug.glb',     scale:0.15, pos:[0.95, 0.77, -1.32], rot:[0,0,0]},
+  lamp:    {path:'Models/lamp.glb',    scale:0.25, pos:[1.15, 0.77, -1.65], rot:[0,0,0]},
+  chair:   {path:'Models/chair.glb',   scale:0.3,  pos:[0.65, 0, -0.65], rot:[0,0,0]},
+  box:     {path:'Models/box.glb',     scale:0.3,  pos:[1.5, 0, 0.2], rot:[0,0,0]},
+  clock:   {path:'Models/clock.glb',   scale:0.15, pos:[1.2, 1.9, -1.94], rot:[0,0,0]},
 };
 
 // Track which primitives to hide when GLB loads
@@ -1079,7 +1079,7 @@ function startGame(){
     buildRoom(1);
     G.printers.push({id:1,name:'Printer 1',color:0x333333,status:'idle',job:null,progress:0,spd:1,fil:null,loadedFil:null});
     placePrinters();
-    loadAllGLBs(); // try loading .glb models from models/ folder
+    loadAllGLBs(); // try loading .glb models from Models/ folder
     console.log('Printers in scene:',prtMeshes.length);
   }catch(e){console.error('BUILD ERROR:',e);}
   updateHUD();showTut();
